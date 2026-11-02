@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Osaka Wings | Reception Display</title>
+<style>
+  /* ============ EDIT THESE TO MATCH YOUR EXACT BRAND COLOURS ============ */
+  :root{
+    --white:#ffffff;
+    --sky:#38bdf8;        /* main sky blue  <- replace with the website's sky blue */
+    --sky-deep:#0284c7;   /* darker sky blue used for text/prices so it reads on white */
+    --sky-light:#e0f4ff;  /* very pale sky blue for backgrounds */
+    --ink:#0b2a45;        /* dark navy for main text */
+    --muted:#5b7a96;      /* secondary text */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#fff;cursor:none;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:var(--ink)}
+  #stage{position:absolute;top:50%;left:50%;width:1920px;height:1080px;transform-origin:center center;
+    background:radial-gradient(ellipse at 30% 15%,var(--white),var(--sky-light) 75%);overflow:hidden}
+  canvas#bg{position:absolute;inset:0}
+
+  /* Soft sky-blue glow */
+  .glow{position:absolute;right:-240px;top:-240px;width:820px;height:820px;border-radius:50%;
+    background:radial-gradient(circle,rgba(56,189,248,.55),rgba(56,189,248,.15) 55%,transparent 70%);
+    animation:pulse 8s ease-in-out infinite}
+  .glow.two{right:auto;left:-300px;top:auto;bottom:-340px;width:760px;height:760px;animation-delay:-4s;opacity:.7}
+  @keyframes pulse{50%{transform:scale(1.12);opacity:.75}}
+
+  /* Speed lines */
+  .line{position:absolute;height:3px;background:linear-gradient(90deg,transparent,rgba(56,189,248,.55),transparent);
+    animation:dash linear infinite;opacity:0}
+  @keyframes dash{0%{transform:translateX(-600px);opacity:0}10%{opacity:1}100%{transform:translateX(2600px);opacity:0}}
+
+  /* Header / footer */
+  header{position:absolute;top:0;left:0;right:0;height:130px;padding:0 80px;display:flex;align-items:center;justify-content:space-between;z-index:5}
+  .brand{display:flex;align-items:center;gap:22px}
+  .brand img{height:84px}
+  .brand .wordmark{display:none;font-size:46px;font-weight:800;letter-spacing:4px;color:var(--ink)}
+  .brand .wordmark b{color:var(--sky)}
+  #clock{text-align:right;line-height:1.15}
+  #clock .t{font-size:54px;font-weight:300;letter-spacing:2px;color:var(--ink)}
+  #clock .d{font-size:22px;color:var(--sky-deep);letter-spacing:2px;text-transform:uppercase}
+
+  footer{position:absolute;bottom:0;left:0;right:0;height:80px;z-index:5;display:flex;align-items:center;justify-content:center;
+    gap:60px;font-size:24px;color:rgba(255,255,255,.9);letter-spacing:1px;background:linear-gradient(90deg,var(--sky-deep),var(--sky))}
+  footer span b{color:var(--white);font-weight:600}
+  #progress{position:absolute;bottom:0;left:0;height:6px;background:var(--white);width:0;z-index:6}
+
+  /* Slides */
+  .slide{position:absolute;top:130px;bottom:80px;left:0;right:0;padding:0 120px;display:flex;flex-direction:column;
+    justify-content:center;opacity:0;visibility:hidden;transition:opacity .9s ease,visibility .9s}
+  .slide.active{opacity:1;visibility:visible}
+  .item{opacity:0}
+  .slide.active .item{animation:rise .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*.14s + .25s)}
+  @keyframes rise{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+
+  h1{font-size:124px;font-weight:800;line-height:1.02;letter-spacing:-1px;color:var(--ink)}
+  h1 em{font-style:normal;color:var(--sky)}
+  h2{font-size:78px;font-weight:700;margin-bottom:10px;color:var(--ink)}
+  .sub{font-size:40px;color:var(--muted);font-weight:300;margin-top:26px}
+  .kicker{font-size:26px;letter-spacing:8px;text-transform:uppercase;color:var(--sky-deep);font-weight:600;margin-bottom:28px}
+  .center{align-items:center;text-align:center}
+
+  /* Shared card look: white card, soft sky shadow */
+  .stat,.car,.card,.brand-chip{background:var(--white);border:1px solid rgba(56,189,248,.35);box-shadow:0 14px 40px rgba(2,132,199,.14)}
+
+  /* Stats */
+  .stats{display:flex;gap:70px;justify-content:center;margin-top:60px}
+  .stat{text-align:center;min-width:420px;padding:50px 30px;border-radius:28px}
+  .stat .n{font-size:150px;font-weight:800;line-height:1;color:var(--ink)}
+  .stat .n small{font-size:90px;color:var(--sky)}
+  .stat .l{font-size:34px;color:var(--muted);margin-top:14px;text-transform:uppercase;letter-spacing:4px}
+
+  /* Cars */
+  .cars{display:grid;grid-template-columns:repeat(2,1fr);gap:36px;margin-top:34px}
+  .car{padding:34px 44px;border-radius:26px;border-left:10px solid var(--sky);position:relative;overflow:hidden}
+  .car::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+    background:linear-gradient(100deg,transparent,rgba(56,189,248,.18),transparent);transform:skewX(-20deg);animation:shine 5s infinite}
+  @keyframes shine{0%,60%{left:-60%}100%{left:140%}}
+  .car .name{font-size:42px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ink)}
+  .car .price{font-size:54px;font-weight:800;color:var(--sky-deep);margin:8px 0 10px}
+  .car .spec{font-size:26px;color:var(--muted)}
+  .tag{display:inline-block;font-size:20px;letter-spacing:3px;text-transform:uppercase;background:var(--sky);color:var(--white);font-weight:600;padding:6px 16px;border-radius:30px;margin-bottom:14px}
+
+  /* Why us */
+  .why{display:grid;grid-template-columns:repeat(3,1fr);gap:50px;margin-top:50px}
+  .card{padding:56px 44px;border-radius:30px;text-align:center}
+  .card .ic{font-size:96px;margin-bottom:20px}
+  .card h3{font-size:44px;margin-bottom:16px;color:var(--ink)}
+  .card p{font-size:30px;color:var(--muted);line-height:1.35}
+
+  /* Brands */
+  .brands{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;margin-top:60px;max-width:1500px}
+  .brand-chip{font-size:64px;font-weight:700;padding:34px 70px;border-radius:100px;letter-spacing:3px;color:var(--ink)}
+  .brand-chip:nth-child(odd){background:linear-gradient(135deg,var(--sky),var(--sky-deep));color:var(--white);border-color:transparent}
+
+  /* Contact */
+  .contact{display:grid;grid-template-columns:1fr 1fr;gap:34px 80px;margin-top:50px}
+  .ci{display:flex;gap:28px;align-items:center;font-size:42px;color:var(--ink)}
+  .ci i{font-style:normal;font-size:64px;width:100px;height:100px;border-radius:50%;display:grid;place-items:center;background:var(--white);border:3px solid var(--sky);box-shadow:0 8px 24px rgba(2,132,199,.18);flex:none}
+  .ci small{display:block;font-size:22px;color:var(--sky-deep);letter-spacing:4px;text-transform:uppercase;margin-bottom:4px;font-weight:600}
+  .cta{margin-top:60px;font-size:36px;color:var(--sky-deep);letter-spacing:2px;font-weight:600}
+  .hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:16px;color:var(--muted);z-index:9;transition:opacity 1s}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" width="1920" height="1080"></canvas>
+  <div class="glow"></div>
+  <div class="glow two"></div>
+  <div id="lines"></div>
+
+  <header>
+    <div class="brand">
+      <img id="logo" src="https://www.osakawings.co.ke/uploads/logo/logo_1778431157.png" alt="Osaka Wings"
+           onerror="this.style.display='none';document.querySelector('.wordmark').style.display='block'">
+      <div class="wordmark">OSAKA <b>WINGS</b></div>
+    </div>
+    <div id="clock"><div class="t">--:--</div><div class="d"></div></div>
+  </header>
+
+  <main id="slides"></main>
+
+  <footer>
+    <span>📞 <b>+254 708 888 111</b></span>
+    <span>✉ <b>info@osakawings.co.ke</b></span>
+    <span>🌐 <b>osakawings.co.ke</b></span>
+  </footer>
+  <div id="progress"></div>
+  <div class="hint" id="hint">Click or press F for fullscreen • ← → to change slide</div>
+</div>
+
+<script>
+/* ======================= EDIT YOUR CONTENT HERE ======================= */
+const CONFIG = {
+  slideSeconds: 10,
+  tagline: "Premium Japanese Cars in Kenya",
+  stats: [
+    { n: 500, suffix: "+", label: "Vehicles Sold" },
+    { n: 98,  suffix: "%", label: "Satisfaction" },
+    { n: 100, suffix: "+", label: "Available Now" }
+  ],
+  // Update this list whenever your featured stock changes
+  cars: [
+    { name: "Toyota Prado Kakadu", price: "KES 10,500,000", spec: "2019 • 79,000 Miles • Automatic • Diesel" },
+    { name: "Toyota Alphard",      price: "KES 4,200,000",  spec: "2019 • 49,160 Miles • Automatic • Petrol" },
+    { name: "Toyota Harrier",      price: "KES 4,900,000",  spec: "2021 • 73,000 Miles • Automatic • Petrol" },
+    { name: "Mazda CX-5 XDL",      price: "KES 3,200,000",  spec: "2019 • 123,600 Miles • Automatic • Diesel" },
+    { name: "Subaru Forester X-Break", price: "KES 3,650,000", spec: "2019 • 79,700 Miles • Automatic • Petrol" },
+    { name: "Toyota Fielder",      price: "KES 1,800,000",  spec: "2019 • 93,600 Miles • Automatic • Petrol" },
+    { name: "Daihatsu Move",       price: "KES 950,000",    spec: "2019 • 53,000 Miles • Automatic • Petrol" },
+    { name: "Jeep Rubicon",        price: "KES 10,600,000", spec: "2019 • 77,173 Miles • Automatic • Petrol" }
+  ],
+  why: [
+    { ic: "🔍", t: "Pre-Purchase Inspection", p: "Full Japanese auction grade reports with every vehicle" },
+    { ic: "🛡️", t: "12-Month Warranty",       p: "Peace of mind on all our vehicles" },
+    { ic: "🚚", t: "Free Delivery",           p: "Nationwide delivery across Kenya included" }
+  ],
+  brands: ["Toyota","Mazda","Nissan","Subaru","Honda","Lexus"],
+  contact: {
+    phone: "+254 708 888 111",
+    email: "info@osakawings.co.ke",
+    address: "Ngong Road, Next to Kenya Meteorological Dept, Nairobi",
+    insta: "@osakawings_ltd"
+  }
+};
+/* ====================================================================== */
+
+const slidesEl = document.getElementById('slides');
+const slides = [];
+const add = (html, onEnter) => slides.push({ html, onEnter });
+
+// 1. Welcome
+add(`<div class="center" style="display:flex;flex-direction:column;align-items:center">
+  <div class="kicker item" style="--i:0">Karibu • ようこそ</div>
+  <h1 class="item" style="--i:1">Welcome to<br><em>Osaka Wings</em></h1>
+  <div class="sub item" style="--i:2">${CONFIG.tagline}</div></div>`);
+
+// 2. Stats
+add(`<div class="center" style="display:flex;flex-direction:column;align-items:center">
+  <div class="kicker item" style="--i:0">Trusted by Kenya</div>
+  <h2 class="item" style="--i:1">Quality you can count on</h2>
+  <div class="stats">${CONFIG.stats.map((s,i)=>`
+    <div class="stat item" style="--i:${i+2}"><div class="n"><span class="count" data-n="${s.n}">0</span><small>${s.suffix}</small></div>
+    <div class="l">${s.label}</div></div>`).join('')}</div></div>`,
+  el => el.querySelectorAll('.count').forEach(c => countUp(c, +c.dataset.n)));
+
+// 3+. Cars (4 per slide)
+for (let i = 0; i < CONFIG.cars.length; i += 4) {
+  const chunk = CONFIG.cars.slice(i, i + 4);
+  add(`<div class="kicker item" style="--i:0">Featured Vehicles</div>
+    <h2 class="item" style="--i:1">Handpicked from our collection</h2>
+    <div class="cars">${chunk.map((c,k)=>`
+      <div class="car item" style="--i:${k+2}"><span class="tag">Featured</span>
+        <div class="name">${c.name}</div><div class="price">${c.price}</div><div class="spec">${c.spec}</div></div>`).join('')}</div>`);
+}
+
+// Why us
+add(`<div class="center" style="display:flex;flex-direction:column;align-items:center">
+  <div class="kicker item" style="--i:0">Why Choose Us</div>
+  <h2 class="item" style="--i:1">The smarter way to buy a car in Kenya</h2>
+  <div class="why">${CONFIG.why.map((w,i)=>`
+    <div class="card item" style="--i:${i+2}"><div class="ic">${w.ic}</div><h3>${w.t}</h3><p>${w.p}</p></div>`).join('')}</div></div>`);
+
+// Brands
+add(`<div class="center" style="display:flex;flex-direction:column;align-items:center">
+  <div class="kicker item" style="--i:0">Premium Japanese Brands</div>
+  <h2 class="item" style="--i:1">Only the finest from Japan</h2>
+  <div class="brands">${CONFIG.brands.map((b,i)=>`<div class="brand-chip item" style="--i:${i+2}">${b}</div>`).join('')}</div></div>`);
+
+// Contact
+const C = CONFIG.contact;
+add(`<div class="kicker item" style="--i:0">Visit • Call • Chat</div>
+  <h2 class="item" style="--i:1">Let's find your perfect drive</h2>
+  <div class="contact">
+    <div class="ci item" style="--i:2"><i>📞</i><div><small>Call / WhatsApp</small>${C.phone}</div></div>
+    <div class="ci item" style="--i:3"><i>✉️</i><div><small>Email</small>${C.email}</div></div>
+    <div class="ci item" style="--i:4"><i>📍</i><div><small>Showroom</small>${C.address}</div></div>
+    <div class="ci item" style="--i:5"><i>📷</i><div><small>Instagram</small>${C.insta}</div></div>
+  </div>
+  <div class="cta item" style="--i:6">Ask our team at reception — we're happy to help!</div>`);
+
+slides.forEach(s => {
+  const d = document.createElement('section');
+  d.className = 'slide'; d.innerHTML = s.html;
+  slidesEl.appendChild(d); s.el = d;
+});
+
+function countUp(el, target){
+  const start = performance.now(), dur = 1800;
+  (function f(t){
+    const p = Math.min(1,(t-start)/dur), e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(target*e);
+    if(p<1) requestAnimationFrame(f);
+  })(start);
+}
+
+let idx = -1, timer, progStart;
+function show(n){
+  idx = (n + slides.length) % slides.length;
+  slides.forEach((s,i)=>s.el.classList.toggle('active', i===idx));
+  slides[idx].onEnter && slides[idx].onEnter(slides[idx].el);
+  clearTimeout(timer);
+  timer = setTimeout(()=>show(idx+1), CONFIG.slideSeconds*1000);
+  progStart = performance.now();
+}
+const prog = document.getElementById('progress');
+(function tick(){
+  prog.style.width = Math.min(100,(performance.now()-progStart)/(CONFIG.slideSeconds*10))+'%';
+  requestAnimationFrame(tick);
+})();
+
+// Clock
+function clock(){
+  const n = new Date();
+  document.querySelector('#clock .t').textContent = n.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  document.querySelector('#clock .d').textContent = n.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+}
+clock(); setInterval(clock, 10000);
+
+// Fit 1920x1080 stage to any screen
+const stage = document.getElementById('stage');
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', fit); fit();
+
+// Speed lines
+const lines = document.getElementById('lines');
+for(let i=0;i<14;i++){
+  const l = document.createElement('div'); l.className='line';
+  l.style.top = (Math.random()*1000+40)+'px';
+  l.style.width = (200+Math.random()*400)+'px';
+  l.style.animationDuration = (5+Math.random()*7)+'s';
+  l.style.animationDelay = (Math.random()*10)+'s';
+  lines.appendChild(l);
+}
+
+// Floating sky-blue petals
+const cv = document.getElementById('bg'), ctx = cv.getContext('2d');
+const SHADES = ['#7dd3fc','#38bdf8','#bae6fd','#0ea5e9'];
+const petals = Array.from({length:45},()=>newPetal(true));
+function newPetal(init){
+  return { x:Math.random()*1920, y:init?Math.random()*1080:-30, s:8+Math.random()*14,
+           vy:.5+Math.random()*1.2, vx:-.3+Math.random()*1.2, r:Math.random()*6.28, vr:(Math.random()-.5)*.03,
+           sway:Math.random()*6.28, a:.3+Math.random()*.45, c:SHADES[Math.floor(Math.random()*SHADES.length)] };
+}
+function draw(){
+  ctx.clearRect(0,0,1920,1080);
+  petals.forEach((p,i)=>{
+    p.y+=p.vy; p.sway+=.02; p.x+=p.vx+Math.sin(p.sway)*.8; p.r+=p.vr;
+    if(p.y>1110||p.x>1980) petals[i]=newPetal(false);
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.globalAlpha=p.a;
+    ctx.fillStyle=p.c; ctx.beginPath();
+    ctx.moveTo(0,-p.s); ctx.bezierCurveTo(p.s,-p.s*.6,p.s*.8,p.s*.6,0,p.s);
+    ctx.bezierCurveTo(-p.s*.8,p.s*.6,-p.s,-p.s*.6,0,-p.s); ctx.fill(); ctx.restore();
+  });
+  requestAnimationFrame(draw);
+}
+draw();
+
+// Controls
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') show(idx+1);
+  if(e.key==='ArrowLeft')  show(idx-1);
+  if(e.key==='f'||e.key==='F') toggleFS();
+});
+addEventListener('click', toggleFS);
+function toggleFS(){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); }
+setTimeout(()=>document.getElementById('hint').style.opacity=0, 6000);
+
+show(0);
+</script>
+</body>
+</html>
